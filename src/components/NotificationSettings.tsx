@@ -1,34 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
-import { Typography } from '../pages/quits-subscription-tracker/components/ui/typography';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Switch } from './ui/switch';
+import { LoadingSpinner } from './shared/LoadingSpinner';
 
 interface NotificationSettings {
   emailNotifications: boolean;
   priceChangeAlerts: boolean;
   renewalReminders: boolean;
-  pushNotifications: boolean;
+  newSubscriptionAlerts: boolean;
 }
 
-const NotificationSettings: React.FC = () => {
+export const NotificationSettings: React.FC = () => {
   const [settings, setSettings] = useState<NotificationSettings>({
     emailNotifications: true,
     priceChangeAlerts: true,
     renewalReminders: true,
-    pushNotifications: false,
+    newSubscriptionAlerts: true
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const response = await apiService.getNotificationSettings();
-        if (response.success && response.data) {
+        if (response.ok && response.data) {
           setSettings(response.data);
         } else {
-          setError('Failed to fetch notification settings');
+          setError(response.error || 'Failed to fetch notification settings');
         }
       } catch (err) {
         setError('An error occurred while fetching settings');
@@ -37,133 +39,97 @@ const NotificationSettings: React.FC = () => {
       }
     };
 
-    if (user) {
-      fetchSettings();
-    }
-  }, [user]);
+    fetchSettings();
+  }, []);
 
   const handleToggle = async (setting: keyof NotificationSettings) => {
-    try {
-      const newValue = !settings[setting];
-      const response = await apiService.updateNotificationSettings({
-        ...settings,
-        [setting]: newValue,
-      });
+    const newSettings = {
+      ...settings,
+      [setting]: !settings[setting]
+    };
 
-      if (response.success) {
-        setSettings(prev => ({
-          ...prev,
-          [setting]: newValue,
-        }));
+    setSaving(true);
+    try {
+      const response = await apiService.updateNotificationSettings(newSettings);
+      if (response.ok) {
+        setSettings(newSettings);
       } else {
-        setError('Failed to update settings');
+        setError(response.error || 'Failed to update settings');
       }
     } catch (err) {
       setError('An error occurred while updating settings');
+      // Revert the toggle if the update failed
+      setSettings(settings);
+    } finally {
+      setSaving(false);
     }
   };
 
   if (loading) {
-    return <div>Loading settings...</div>;
-  }
-
-  if (error) {
-    return <div className="text-red-500">{error}</div>;
+    return (
+      <div className="flex justify-center items-center min-h-[200px]">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <Typography.h2 className="text-xl font-semibold">
-        Notification Settings
-      </Typography.h2>
-
-      <div className="space-y-4">
+    <Card className="p-6">
+      <h2 className="text-2xl font-semibold mb-6">Notification Settings</h2>
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
+          {error}
+        </div>
+      )}
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <Typography.span className="font-medium">Email Notifications</Typography.span>
-            <Typography.p className="text-sm text-gray-500">
-              Receive notifications via email
-            </Typography.p>
+            <h3 className="text-lg font-medium">Email Notifications</h3>
+            <p className="text-gray-500">Receive notifications via email</p>
           </div>
-          <button
-            onClick={() => handleToggle('emailNotifications')}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              settings.emailNotifications ? 'bg-blue-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.emailNotifications ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+          <Switch
+            checked={settings.emailNotifications}
+            onCheckedChange={() => handleToggle('emailNotifications')}
+            disabled={saving}
+          />
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <Typography.span className="font-medium">Price Change Alerts</Typography.span>
-            <Typography.p className="text-sm text-gray-500">
-              Get notified when subscription prices change
-            </Typography.p>
+            <h3 className="text-lg font-medium">Price Change Alerts</h3>
+            <p className="text-gray-500">Get notified when subscription prices change</p>
           </div>
-          <button
-            onClick={() => handleToggle('priceChangeAlerts')}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              settings.priceChangeAlerts ? 'bg-blue-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.priceChangeAlerts ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+          <Switch
+            checked={settings.priceChangeAlerts}
+            onCheckedChange={() => handleToggle('priceChangeAlerts')}
+            disabled={saving}
+          />
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <Typography.span className="font-medium">Renewal Reminders</Typography.span>
-            <Typography.p className="text-sm text-gray-500">
-              Receive reminders before subscription renewals
-            </Typography.p>
+            <h3 className="text-lg font-medium">Renewal Reminders</h3>
+            <p className="text-gray-500">Receive reminders before subscriptions renew</p>
           </div>
-          <button
-            onClick={() => handleToggle('renewalReminders')}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              settings.renewalReminders ? 'bg-blue-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.renewalReminders ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+          <Switch
+            checked={settings.renewalReminders}
+            onCheckedChange={() => handleToggle('renewalReminders')}
+            disabled={saving}
+          />
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <Typography.span className="font-medium">Push Notifications</Typography.span>
-            <Typography.p className="text-sm text-gray-500">
-              Receive push notifications on your device
-            </Typography.p>
+            <h3 className="text-lg font-medium">New Subscription Alerts</h3>
+            <p className="text-gray-500">Get notified when new subscriptions are detected</p>
           </div>
-          <button
-            onClick={() => handleToggle('pushNotifications')}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              settings.pushNotifications ? 'bg-blue-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.pushNotifications ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+          <Switch
+            checked={settings.newSubscriptionAlerts}
+            onCheckedChange={() => handleToggle('newSubscriptionAlerts')}
+            disabled={saving}
+          />
         </div>
       </div>
-    </div>
+    </Card>
   );
-};
-
-export default NotificationSettings; 
+}; 

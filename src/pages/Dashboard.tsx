@@ -1,7 +1,10 @@
-import * as React from 'react';
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import NotificationCenter from '../components/NotificationCenter';
-import NotificationSettings from '../components/NotificationSettings';
+import { NotificationCenter } from '../components/NotificationCenter';
+import { NotificationSettings } from '../components/NotificationSettings';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
+import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import SubscriptionList from '../components/dashboard/SubscriptionList';
 
 const Dashboard: React.FC = () => {

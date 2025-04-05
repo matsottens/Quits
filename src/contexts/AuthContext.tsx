@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { SubscriptionData, PriceChange } from '../types/subscription';
-import { ApiService } from '../services/api';
+import { apiService } from '../services/api';
 
 // Flag to enable mock auth for local development - explicitly set to false
 const USE_MOCK_AUTH = false;
@@ -52,8 +52,10 @@ interface AuthContextType extends AuthState {
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   clearError: () => void;
-  scanEmails: () => Promise<any>;
+  scanEmails: () => Promise<void>;
   subscriptionState: SubscriptionState;
+  isScanning: boolean;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -85,6 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }: any) => 
     priceChanges: null,
     lastScanTime: null
   });
+
+  const [isScanning, setIsScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const clearError = () => {
     setAuthState(prev => ({ ...prev, error: null }));
@@ -272,71 +277,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }: any) => 
     }
   };
 
-  const scanEmails = async () => {
-    if (!authState.session?.provider_token) {
-      console.error('No Gmail token found in session');
-      // Check if we have a token in session storage
-      const storedToken = sessionStorage.getItem('gmail_access_token');
-      
-      if (!storedToken) {
-        console.log('No Gmail token found, redirecting to Google auth');
-        await signInWithGoogle();
-        return { success: false, error: 'Gmail token not found. Redirecting to Google auth...' };
-      }
-    }
-    
-    // Continue with scan as before
-    setSubscriptionState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+  const scanEmails = async (): Promise<void> => {
+    setIsScanning(true);
+    setError(null);
     try {
-      // Get the API service instance - use the directly imported ApiService
-      console.log('Getting ApiService instance...');
-      const apiService = ApiService.getInstance();
-      
-      // Call the scan emails API
-      console.log('Calling scanEmails API...');
       const response = await apiService.scanEmails();
-      console.log('ScanEmails API response:', response);
-      
-      if (response.success && response.data) {
-        setSubscriptionState(prev => ({
-          ...prev,
-          subscriptions: response.data.subscriptions || [],
-          priceChanges: response.data.priceChanges,
-          lastScanTime: new Date().toISOString(),
-          isLoading: false,
-          error: null
-        }));
-        return response;
-      } else {
-        // Check if the error is related to Gmail token
-        if (response.error?.includes('Gmail token') || 
-            response.error?.includes('token expired') || 
-            response.details?.includes('401')) {
-          console.log('Gmail token issue detected, redirecting to Google auth');
-          await signInWithGoogle();
-          return { success: false, error: 'Gmail token expired. Redirecting to Google auth...' };
-        }
-        
-        setSubscriptionState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: response.error || 'Failed to scan emails'
-        }));
-        return response;
+      if (!response.ok || !response.data) {
+        throw new Error(response.error || 'Failed to scan emails');
       }
-    } catch (error) {
-      console.error('Error scanning emails:', error);
+      const { subscriptions = [], priceChanges = null } = response.data;
       setSubscriptionState(prev => ({
         ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'An error occurred while scanning emails'
+        subscriptions,
+        priceChanges,
+        lastScanTime: new Date().toISOString()
       }));
-      return { 
-        success: false, 
-        error: 'Failed to scan emails', 
-        details: error instanceof Error ? error.message : String(error)
-      };
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred while scanning emails');
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -389,20 +348,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }: any) => 
     };
   }, []);
 
+  const value = {
+    ...authState,
+    signIn,
+    signInWithGoogle,
+    signUp,
+    signOut,
+    refreshSession,
+    clearError,
+    scanEmails,
+    subscriptionState,
+    isScanning,
+    error
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        ...authState,
-        signIn,
-        signInWithGoogle,
-        signUp,
-        signOut,
-        refreshSession,
-        clearError,
-        scanEmails,
-        subscriptionState
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

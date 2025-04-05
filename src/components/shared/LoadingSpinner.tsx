@@ -1,27 +1,27 @@
-import * as React from 'react';
+import React from 'react';
+
+type SpinnerSize = 'small' | 'medium' | 'large';
 
 interface LoadingSpinnerProps {
-  size?: 'small' | 'medium' | 'large';
+  size?: SpinnerSize;
   color?: string;
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'medium', 
-  color = 'primary' }: any) => {
-  // Determine size based on prop
-  const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-8 h-8',
-    large: 'w-12 h-12'
-  };
-
-  // Determine color based on prop
-  const colorClass = color === 'primary' ? 'text-primary' : `text-${color}-500`;
-
-  return (
-    <div className="flex justify-center">
-      <div className={`animate-spin rounded-full border-t-2 border-b-2 border-current ${sizeClasses[size]} ${colorClass}`}></div>
-    </div>
-  );
+const sizeClasses: Record<SpinnerSize, string> = {
+  small: 'h-4 w-4',
+  medium: 'h-8 w-8',
+  large: 'h-12 w-12'
 };
 
-export default LoadingSpinner; 
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+  size = 'medium',
+  color = 'text-primary'
+}) => {
+  const colorClass = color;
+
+  return (
+    <div className="flex items-center justify-center">
+      <div className={`animate-spin rounded-full border-t-2 border-b-2 border-current ${sizeClasses[size as SpinnerSize]} ${colorClass}`}></div>
+    </div>
+  );
+}; 

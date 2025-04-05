@@ -17,7 +17,7 @@ import { useSubscriptions } from '../hooks/useSubscriptions';
 
 const AddSubscription: React.FC = () => {
   const navigate = useNavigate();
-  const { refreshSubscriptions, isLocalDev } = useSubscriptions();
+  const { refreshSubscriptions, isLocalDev, addSubscription } = useSubscriptions();
   
   const [formData, setFormData] = useState({
     provider: '',
@@ -43,15 +43,24 @@ const AddSubscription: React.FC = () => {
     setError(null);
     
     try {
-      // In a real implementation, you would use the API service to add a subscription
-      // For now, we'll just simulate success after a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Refresh subscriptions to get the updated list
-      await refreshSubscriptions();
-      
-      // Navigate back to the subscriptions list
-      navigate('/subscriptions');
+      const subscription = {
+        provider: formData.provider,
+        price: parseFloat(formData.price),
+        frequency: formData.frequency,
+        renewal_date: formData.renewal_date || null,
+        is_price_increase: false,
+        lastDetectedDate: new Date().toISOString(),
+        term_months: formData.frequency === 'monthly' ? 1 : 12,
+        user_id: '', // This will be set by the hook
+        id: '', // This will be set by the database
+      };
+
+      const result = await addSubscription(subscription);
+      if (result) {
+        navigate('/subscriptions');
+      } else {
+        throw new Error('Failed to add subscription');
+      }
     } catch (err) {
       console.error('Error adding subscription:', err);
       setError('Failed to add subscription. Please try again.');

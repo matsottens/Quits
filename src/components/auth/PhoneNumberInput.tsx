@@ -101,8 +101,8 @@ export const PhoneNumberInput: React.FC = () => {
       }
 
       console.log('Successfully saved phone number');
-      // Navigate to scanning screen
-      navigate('/scanning');
+      // Navigate to email scan screen
+      navigate('/auth/consent');
     } catch (err) {
       console.error('Error in handleSubmit:', err);
       setError(err instanceof Error ? err.message : 'Failed to save phone number');

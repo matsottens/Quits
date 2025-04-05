@@ -18,11 +18,11 @@ import { AuthCallback } from './components/auth/AuthCallback';
 import PrivateRoute from './components/PrivateRoute';
 import SignIn from './pages/SignIn';
 import CorsTest from './components/CorsTest';
-import { SubscriptionProvider } from './hooks/useSubscriptions.tsx';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import Subscriptions from './pages/Subscriptions';
 import AddSubscription from './pages/AddSubscription';
 import SubscriptionDetailsPage from './pages/SubscriptionDetailsPage';
-import ApiDiagnosticTool from './components/api-test/ApiDiagnosticTool';
+import { ApiDiagnosticTool } from './components/api-test/ApiDiagnosticTool';
 
 // Protected Route component with Layout
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children  }: any) => {
@@ -81,59 +81,40 @@ const AppRouter: React.FC = () => {
             <PhoneNumberInput />
           </ProtectedRoute>
         } />
-        <Route path="/auth/google/callback" element={<OAuthRedirect />} />
         <Route path="/auth/consent" element={<EmailOAuthConsent />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/scanning" element={<ScanningScreen />} />
+        <Route path="/subscription-selection" element={
+          <ProtectedRoute>
+            <SubscriptionSelection />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard" element={
+          <PrivateRoute>
+            <Dashboard />
+          </PrivateRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/subscriptions" element={
+          <ProtectedRoute>
+            <Subscriptions />
+          </ProtectedRoute>
+        } />
+        <Route path="/subscriptions/:id" element={
+          <ProtectedRoute>
+            <SubscriptionDetailsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/subscriptions/add" element={
+          <ProtectedRoute>
+            <AddSubscription />
+          </ProtectedRoute>
+        } />
         <Route path="/api-test" element={<ApiDiagnosticTool />} />
-        <Route
-          path="/subscription-selection"
-          element={
-            <ProtectedRoute>
-              <SubscriptionSelection />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/subscriptions"
-          element={
-            <ProtectedRoute>
-              <Subscriptions />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/subscriptions/:id"
-          element={
-            <ProtectedRoute>
-              <SubscriptionDetailsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/add-subscription"
-          element={
-            <ProtectedRoute>
-              <AddSubscription />
-            </ProtectedRoute>
-          }
-        />
       </Routes>
     </Router>
   );
