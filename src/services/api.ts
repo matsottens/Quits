@@ -170,14 +170,13 @@ class ApiService {
   }
 
   // Scan emails for subscriptions
-  async scanEmails(): Promise<ApiResponse<ScanEmailsApiResponse>> {
+  public async scanEmails(): Promise<ApiResponse<ScanEmailsApiResponse>> {
+    console.log('Scanning emails...');
+    
+    // For local development with mock data, return mock data
     if (USE_MOCK_DATA) {
       console.log('Using mock scan data');
-      return createSuccessResponse({
-        subscriptions: MOCK_SUBSCRIPTIONS,
-        count: MOCK_SUBSCRIPTIONS.length,
-        priceChanges: MOCK_PRICE_CHANGES
-      });
+      return this.getMockScanResults();
     }
     
     try {
@@ -230,12 +229,16 @@ class ApiService {
         const requestUrl = `${API_URL}/api/scan-emails`;
         console.log('Request URL:', requestUrl);
         
+        // Create new URL to get clean origin
+        const currentOrigin = new URL(window.location.href).origin;
+        console.log('Current origin:', currentOrigin);
+        
         const headers = {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
           'X-Gmail-Token': gmailToken,
           'X-User-ID': session.user.id,
-          'Origin': window.location.origin
+          'Origin': currentOrigin
         };
         
         console.log('Request headers (sanitized):', {
