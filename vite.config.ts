@@ -48,12 +48,18 @@ const MOCK_NOTIFICATIONS = [
 ];
 
 // Load API URL from environment or use default
-const API_URL = process.env.VITE_API_URL || 'https://quits-api.vercel.app';
+const API_URL = process.env.VITE_API_URL || 'https://api.quits.cc';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
+    react({
+      babel: {
+        plugins: [
+          ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }]
+        ]
+      }
+    }), 
     svgr(), 
     tsconfigPaths(),
   ],
@@ -65,10 +71,17 @@ export default defineConfig({
   build: {
     sourcemap: true,
     outDir: 'dist',
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-tooltip'
+          ]
         },
       },
     },
@@ -89,7 +102,6 @@ export default defineConfig({
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             console.log('Proxying API request:', req.method, req.url);
-            // Forward the original authorization headers
             const authHeader = req.headers['authorization'];
             if (authHeader) {
               proxyReq.setHeader('Authorization', authHeader);
@@ -106,9 +118,20 @@ export default defineConfig({
     esbuildOptions: {
       target: 'es2020',
     },
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-tooltip'
+    ]
   },
   esbuild: {
     target: 'es2020',
+    legalComments: 'none',
+    treeShaking: true
   },
   preview: {
     port: 3000,

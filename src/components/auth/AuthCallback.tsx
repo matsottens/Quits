@@ -31,66 +31,38 @@ export const AuthCallback: React.FC = () => {
           throw sessionError;
         }
 
-        // Check if we already have a session
-        if (session) {
-          console.log('Session found:', !!session);
-
-          // Check for provider token (Gmail access token)
-          if (session.provider_token) {
-            console.log('Provider token found in session');
-            sessionStorage.setItem('gmail_access_token', session.provider_token);
-            setTokenReceived(true);
-          } else {
-            console.warn('No provider token in session - might need to re-authorize');
+        if (!session) {
+          console.log('No session found, checking for hash parameters');
+          // Handle the OAuth callback
+          const { data: { user }, error: signInError } = await supabase.auth.getUser();
+          if (signInError) {
+            throw signInError;
           }
-        } else {
-          console.log('No session found, checking for code parameter');
-          
-          // Exchange authorization code for session (PKCE flow)
-          if (queryParams.has('code')) {
-            console.log('Found code in query params, exchanging for session');
-            const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(
-              queryParams.get('code') || ''
-            );
-            
-            if (exchangeError) {
-              console.error('Error exchanging code for session:', exchangeError);
-              throw exchangeError;
-            }
-            
-            if (!data.session) {
-              throw new Error('Failed to get session from code exchange');
-            }
-
-            console.log('Successfully exchanged code for session');
-            
-            // Check for provider token in the new session
-            if (data.session.provider_token) {
-              console.log('Provider token found after code exchange');
-              sessionStorage.setItem('gmail_access_token', data.session.provider_token);
-              setTokenReceived(true);
-            } else {
-              console.warn('No provider token after code exchange - scope issue?');
-              throw new Error('Gmail access was not granted. Please allow access to Gmail to use this feature.');
-            }
-          } else {
-            console.warn('No code parameter found in callback URL');
-            throw new Error('Authentication callback missing required parameters');
+          if (!user) {
+            throw new Error('No user found after OAuth callback');
           }
         }
 
-        setProcessingAuth(false);
-        
-        // Only automatically proceed to scanning if we have the token
-        if (tokenReceived) {
-          console.log('Authentication successful with Gmail token, proceeding to scan');
-          setTimeout(() => {
-            navigate('/scanning');
-          }, 1500);
+        // Get the latest session to ensure we have the provider token
+        const { data: { session: latestSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          throw refreshError;
+        }
+
+        // Check for provider token in the latest session
+        if (latestSession?.provider_token) {
+          console.log('Provider token found in latest session');
+          sessionStorage.setItem('gmail_access_token', latestSession.provider_token);
+          setTokenReceived(true);
+          navigate('/scanning');
+        } else {
+          console.warn('No provider token in latest session');
+          throw new Error('Gmail access was not granted. Please allow access to Gmail to use this feature.');
         }
       } catch (err) {
-        console.error('Error in auth callback:', err);
-        setError(err instanceof Error ? err.message : 'Authentication failed');
+        console.error('Auth callback error:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred during authentication');
+      } finally {
         setProcessingAuth(false);
       }
     };
@@ -98,30 +70,39 @@ export const AuthCallback: React.FC = () => {
     handleCallback();
   }, [navigate]);
 
-  const handleRetry = () => {
-    navigate('/signin');
-  };
+  if (processingAuth) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh',
+        gap: 2
+      }}>
+        <CircularProgress />
+        <Typography>Processing authentication...</Typography>
+      </Box>
+    );
+  }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          p: 3,
-        }}
-      >
-        <Alert severity="error" sx={{ mb: 3, maxWidth: 500 }}>
-          <Typography variant="subtitle1" fontWeight="bold">Authentication Error</Typography>
-          <Typography variant="body2">{error}</Typography>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh',
+        gap: 2,
+        p: 2
+      }}>
+        <Alert severity="error" sx={{ maxWidth: 600, width: '100%' }}>
+          {error}
         </Alert>
         <Button 
           variant="contained" 
-          color="primary" 
-          onClick={handleRetry}
+          onClick={() => navigate('/auth/consent')}
           sx={{ mt: 2 }}
         >
           Try Again
@@ -130,52 +111,5 @@ export const AuthCallback: React.FC = () => {
     );
   }
 
-  if (!processingAuth && !tokenReceived) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          p: 3,
-        }}
-      >
-        <Alert severity="warning" sx={{ mb: 3, maxWidth: 500 }}>
-          <Typography variant="subtitle1" fontWeight="bold">Gmail Access Required</Typography>
-          <Typography variant="body2">
-            We need access to your Gmail account to scan for subscriptions. 
-            Please sign in with Google and grant the necessary permissions.
-          </Typography>
-        </Alert>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleRetry}
-        >
-          Sign In with Google
-        </Button>
-      </Box>
-    );
-  }
-
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-      }}
-    >
-      <CircularProgress />
-      <Typography sx={{ mt: 2 }}>
-        {tokenReceived 
-          ? "Gmail access granted! Proceeding to scan..." 
-          : "Completing authentication..."}
-      </Typography>
-    </Box>
-  );
+  return null;
 }; 
