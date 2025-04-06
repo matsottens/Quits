@@ -399,47 +399,111 @@ export class ApiService {
         throw new Error('Not authenticated. Please sign in again.');
       }
       
+      // Log session information for debugging (omitting sensitive data)
+      console.log('Auth session:', {
+        hasUser: !!session.user,
+        userId: session.user?.id,
+        hasAccessToken: !!session.access_token,
+        tokenLength: session.access_token?.length || 0,
+        expiresAt: session.expires_at,
+      });
+      
+      // Ensure we have a valid Gmail token
+      const { ensureValidGmailToken } = await import('./googleAuth');
+      const isGmailTokenValid = await ensureValidGmailToken();
+      
+      if (!isGmailTokenValid) {
+        console.error('Failed to get valid Gmail token');
+        return {
+          success: false,
+          error: 'Gmail authorization required',
+          details: 'Please connect your Gmail account again to scan emails.'
+        };
+      }
+      
       const gmailToken = sessionStorage.getItem('gmail_access_token');
       
       if (!gmailToken) {
-        console.error('Gmail token not found');
+        console.error('Gmail token not found even after validation check');
         throw new Error('Gmail token not found. Please connect your Gmail account.');
       }
+      
+      // Log Gmail token info (partial) for debugging
+      console.log('Gmail token info:', {
+        tokenLength: gmailToken.length,
+        firstChars: gmailToken.substring(0, 10) + '...',
+        lastChars: '...' + gmailToken.substring(gmailToken.length - 10),
+      });
       
       console.log('Sending request to scan emails...');
       
       try {
-        const response = await fetch(`${API_URL}/api/scan-emails`, {
+        const requestUrl = `${API_URL}/api/scan-emails`;
+        console.log('Request URL:', requestUrl);
+        
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-Gmail-Token': gmailToken,
+          'X-User-ID': session.user.id,
+          'Origin': window.location.origin
+        };
+        
+        console.log('Request headers (sanitized):', {
+          ...headers,
+          'Authorization': 'Bearer [REDACTED]',
+          'X-Gmail-Token': '[REDACTED]'
+        });
+        
+        const response = await fetch(requestUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'X-Gmail-Token': gmailToken,
-            'X-User-ID': session.user.id,
-            'Origin': window.location.origin
-          },
+          headers,
           credentials: 'include',
           mode: 'cors',
           body: JSON.stringify({
             userId: session.user.id,
-            // Include any other required parameters
           })
         });
-      
+        
         console.log('Scan response status:', response.status);
+        console.log('Response headers:', {
+          'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+          'content-type': response.headers.get('content-type'),
+          'cors-exposed-headers': response.headers.get('access-control-expose-headers')
+        });
+        
+        if (response.status === 401) {
+          // Token is likely invalid - clear it so we can request a new one
+          console.error('Gmail token rejected (401)');
+          sessionStorage.removeItem('gmail_access_token');
+          sessionStorage.removeItem('gmail_token_expiry');
+          
+          return {
+            success: false,
+            error: 'Gmail authorization expired',
+            details: 'Your Gmail authorization has expired. Please connect Gmail again.'
+          };
+        }
         
         if (!response.ok) {
           let errorText;
           try {
             const errorData = await response.json();
             errorText = errorData.message || errorData.error || `Server returned ${response.status}`;
+            console.error('Error response body:', errorData);
           } catch (e) {
-            errorText = `Server returned ${response.status}`;
+            try {
+              errorText = await response.text();
+              console.error('Error response text:', errorText);
+            } catch (textError) {
+              errorText = `Server returned ${response.status}`;
+              console.error('Failed to read error response');
+            }
           }
           
           console.error('Email scan failed:', errorText);
-      return { 
-        success: false, 
+          return { 
+            success: false, 
             error: `Failed to scan emails: ${errorText}`,
             details: `Status: ${response.status} ${response.statusText}`
           };
@@ -458,18 +522,18 @@ export class ApiService {
         };
         
       } catch (fetchError) {
-        console.error('Error scanning emails:', fetchError);
+        console.error('Error scanning emails (fetch error):', fetchError);
         return {
           success: false,
-          error: 'Failed to scan emails',
+          error: 'Failed to scan emails: Network error',
           details: fetchError instanceof Error ? fetchError.message : String(fetchError)
         };
       }
     } catch (error) {
-      console.error('Error scanning emails:', error);
+      console.error('Error scanning emails (general error):', error);
       return {
         success: false,
-        error: 'Failed to scan emails',
+        error: 'Failed to scan emails: Authentication error',
         details: error instanceof Error ? error.message : String(error)
       };
     }
@@ -716,6 +780,75 @@ export class ApiService {
       return {
         error: 'Scan emails CORS test failed',
         details: String(error)
+      };
+    }
+  }
+
+  // Utility method to test Gmail token validity
+  public async testGmailToken(): Promise<ApiResponse<any>> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        return {
+          success: false,
+          error: 'Not authenticated',
+          details: 'No valid session found'
+        };
+      }
+      
+      const gmailToken = sessionStorage.getItem('gmail_access_token');
+      
+      if (!gmailToken) {
+        return {
+          success: false,
+          error: 'No Gmail token',
+          details: 'Gmail token not found in session storage'
+        };
+      }
+      
+      // Try a simple Gmail API request to verify token validity
+      try {
+        const response = await fetch(`${API_URL}/api/test-gmail-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'X-Gmail-Token': gmailToken,
+            'X-User-ID': session.user.id
+          },
+          body: JSON.stringify({ test: true })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          return {
+            success: false,
+            error: 'Gmail token validation failed',
+            details: errorData.error || `Status: ${response.status}`
+          };
+        }
+        
+        const data = await response.json();
+        return {
+          success: true,
+          data: {
+            tokenValid: true,
+            tokenDetails: data
+          }
+        };
+      } catch (fetchError) {
+        return {
+          success: false,
+          error: 'Gmail token validation request failed',
+          details: fetchError instanceof Error ? fetchError.message : String(fetchError)
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: 'Error validating Gmail token',
+        details: error instanceof Error ? error.message : String(error)
       };
     }
   }
