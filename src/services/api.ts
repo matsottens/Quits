@@ -35,11 +35,11 @@ interface ScanEmailsApiResponse {
 }
 
 // Use API URL from environment variables or default to api.quits.cc
-const API_URL = process.env.VITE_API_URL || 'https://api.quits.cc';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.quits.cc';
 console.log('API Service initialized with API_URL:', API_URL);
 
-// Explicitly disable mock data
-const USE_MOCK_DATA = true;
+// Use mock data only in development
+const USE_MOCK_DATA = import.meta.env.DEV || import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 // Mock data for local development
 const MOCK_SUBSCRIPTIONS: SubscriptionData[] = [

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "quits-frontend",
-  "buildCommand": "node vercel-build-debug.js",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": "dist",
   "framework": "vite",
@@ -26,6 +26,8 @@
   "env": {
     "VITE_SUPABASE_URL": "https://pihflemmavointdxjdsx.supabase.co",
     "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaGZsZW1tYXZvaW50ZHhqZHN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxODgxNzcsImV4cCI6MjA1ODc2NDE3N30.yJqxRrBNLkuiMz1--QOn_EHm8l2A8B-XSV4hEBS4_pY",
-    "VITE_API_URL": "https://api.quits.cc"
+    "VITE_API_URL": "https://api.quits.cc",
+    "VITE_GOOGLE_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
+    "VITE_GOOGLE_REDIRECT_URI": "https://www.quits.cc/auth/google/callback"
   }
 } 
