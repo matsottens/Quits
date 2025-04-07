@@ -50,14 +50,14 @@ const MOCK_DATA: { [key: string]: any } = {
       details: [
         {
           provider: "Netflix",
-          price: 15.99,
+    price: 15.99,
           frequency: "monthly",
           lastPayment: "2023-05-15",
           nextPayment: "2023-06-15"
         },
         {
           provider: "Spotify",
-          price: 9.99,
+    price: 9.99,
           frequency: "monthly",
           lastPayment: "2023-05-10",
           nextPayment: "2023-06-10"
@@ -71,7 +71,7 @@ const MOCK_DATA: { [key: string]: any } = {
         },
         {
           provider: "Disney+",
-          price: 7.99,
+    price: 7.99,
           frequency: "monthly",
           lastPayment: "2023-05-20",
           nextPayment: "2023-06-20"
@@ -96,10 +96,10 @@ const MOCK_DATA: { [key: string]: any } = {
       priceChanges: [
         {
           provider: "Netflix",
-          oldPrice: 13.99,
-          newPrice: 15.99,
+    oldPrice: 13.99,
+    newPrice: 15.99,
           change: 2.0,
-          percentageChange: 14.3,
+    percentageChange: 14.3,
           firstDetected: "2023-03-15",
           lastUpdated: "2023-04-15"
         },
@@ -155,9 +155,9 @@ const MOCK_DATA: { [key: string]: any } = {
         title: "Price Change Alert",
         message: "Netflix subscription price has increased from $13.99 to $15.99 (14.3%)",
         created_at: "2023-05-15T14:30:00Z",
-        read: false
-      },
-      {
+    read: false
+  },
+  {
         id: "2",
         type: "renewal",
         title: "Upcoming Renewal",
@@ -209,9 +209,9 @@ class ApiService {
     const session = await supabase.auth.getSession();
     const token = session?.data?.session?.access_token;
     const userId = session?.data?.session?.user?.id;
-    const gmailToken = sessionStorage.getItem('gmail_access_token');
+      const gmailToken = sessionStorage.getItem('gmail_access_token');
 
-    return {
+      return {
       'Authorization': token ? `Bearer ${token}` : '',
       'X-User-ID': userId || '',
       'X-Gmail-Token': gmailToken || '',
